@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-anchor_vault = "8uMETpk5EoE5foLmaRNEGPPz8YDiBPRe2QChHVqTdAa"
+anchor_dice = "57dQeDA9wvwsx7dWfwzgEL1U5TELwptQeMxbBcKNQWmd"
 
 [registry]
 url = "https://api.apr.dev"
@@ -17,8 +17,3 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "pnpm exec ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
-
-[test]
-startup_wait = 10000  # Wait 10 seconds for validator to start
-shutdown_wait = 2000  # Wait 2 seconds before shutting down
-upgradeable = false

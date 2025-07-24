@@ -2,7 +2,7 @@
 #![allow(deprecated)]
 use anchor_lang::{prelude::*, system_program::{Transfer, transfer}};
 
-declare_id!("AFNDrA2drzz1VNrrCBncsQN3fT8RQsKckKdjzYCWBT9g");
+declare_id!("8uMETpk5EoE5foLmaRNEGPPz8YDiBPRe2QChHVqTdAa");
 
 #[program]
 pub mod anchor_vault {
@@ -91,15 +91,30 @@ pub struct CloseVault<'info> {
 
 impl<'info> CloseVault<'info> {
     pub fn close_vault(&mut self) -> Result<()> {
-        let vault_account_info = self.vault.to_account_info();
-        let user_account_info = self.user.to_account_info();
+        let vault_lamports = self.vault.to_account_info().lamports();
+
+        // Ensure the vault has funds before trying to transfer
+        if vault_lamports == 0 {
+            return Err(ProgramError::InvalidAccountData.into()); // Or a custom error
+        }
+
+        let cpi_program = self.system_program.to_account_info();
+        let cpi_accounts = Transfer {
+            from: self.vault.to_account_info(),
+            to: self.user.to_account_info(),
+        };
         
-        // Get the amount of lamports in the vault
-        let vault_lamports = vault_account_info.lamports();
-        
-        // Transfer lamports from vault to user
-        **vault_account_info.try_borrow_mut_lamports()? = 0;
-        **user_account_info.try_borrow_mut_lamports()? += vault_lamports;
+        let user_key = self.user.key();
+        let seeds = &[
+            b"vault",
+            user_key.as_ref(),
+            &[self.vault_state.vault_bump],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
+
+        transfer(cpi_ctx, vault_lamports)?;
 
         Ok(())
     }
@@ -128,14 +143,15 @@ impl<'info> Payment<'info> {
             to: self.user.to_account_info(),
         };
 
+        let user_key = self.user.key();
         let seeds = &[
             b"vault",
-            self.vault_state.to_account_info().key.as_ref(),
+            user_key.as_ref(),
             &[self.vault_state.vault_bump],
         ];
 
         let signer_seeds = &[&seeds[..]];
-
+        
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
 
         transfer(cpi_ctx, amount)
