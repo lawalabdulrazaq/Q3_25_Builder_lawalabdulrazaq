@@ -79,17 +79,20 @@ impl <'info> Swap <'info> {
 
         let mut curve = ConstantProduct::init(self.vault_x.amount, self.vault_y.amount, self.mint_lp.supply, self.config.fee, None).map_err(AmmError::from)?;
 
-        let p = match is_x {
-            true => LiquidityPair::X,
-            false => LiquidityPair::Y
+        let res = match is_x {
+            true => curve.swap(LiquidityPair::X, amount, min).map_err(AmmError::from)?,
+            false => curve.swap(LiquidityPair::Y, amount, min).map_err(AmmError::from)?,
         };
-        let res = curve.swap(p, amount, min).map_err(AmmError::from)?;
 
-        require!(res.deposit != 0 && res.withdraw !=0 , AmmError::InvalidAmount);
-
-        self.deposit_token(is_x, res.deposit)?;
-
-        self.withdraw_token(is_x, res.withdraw)?;
+        if is_x {
+            // Swapping X for Y
+            self.deposit_token(true, res.deposit)?;
+            self.withdraw_token(false, res.withdraw)?;
+        } else {
+            // Swapping Y for X
+            self.deposit_token(false, res.deposit)?; 
+            self.withdraw_token(true, res.withdraw)?;
+        }
 
         Ok(())
 
